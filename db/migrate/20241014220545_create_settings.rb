@@ -8,9 +8,8 @@ class CreateSettings < ActiveRecord::Migration[8.0]
       t.string :time_zone, null: true, default: "UTC"
       t.text :head_code, null: true
       t.text :custom_css, null: true
-      t.json :social_links, null: true
-      t.json :static_files, null: true, default: {}
-
+      t.text :social_links, null: true
+      t.text :static_files, null: true
       t.timestamps
     end
   end

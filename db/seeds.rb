@@ -263,32 +263,6 @@ if Rails.env.development?
       status: "trash",
       slug: "the-adventures-of-sherlock-holmes"
     },
-
-    # Page 状态的文章
-    {
-      title: "About",
-      content: "About",
-      status: "publish",
-      slug: "about",
-      is_page: true,
-      page_order: 1
-    },
-    {
-      title: "Projects",
-      content: "Projects",
-      status: "publish",
-      slug: "projects",
-      is_page: true,
-      page_order: 2
-    },
-    {
-      title: "Links",
-      content: "Links",
-      status: "draft",
-      slug: "links",
-      is_page: true,
-      page_order: 3
-    }
   ]
 
   all_slugs = articles.map { |article| article[:slug] }
@@ -310,8 +284,6 @@ if Rails.env.development?
       title: article_data[:title],
       status: article_data[:status],
       slug: article_data[:slug],
-      is_page: article_data[:is_page] || false,
-      page_order: article_data[:page_order] || 0
     )
     article.content = article_data[:content]
 

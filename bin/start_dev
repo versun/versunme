@@ -1,0 +1,104 @@
+#!/usr/bin/env ruby
+
+# 开发环境一键启动脚本
+# 启动服务：Rails服务器 + Solid Queue + 数据库准备
+
+require 'fileutils'
+require 'open3'
+
+puts "🚀 启动开发环境服务..."
+puts "=" * 50
+
+# 检查端口是否被占用
+def port_in_use?(port)
+  system("lsof -i:#{port} > /dev/null 2>&1")
+end
+
+# 杀死占用端口的进程
+def kill_port_process(port)
+  puts "🔍 检查端口 #{port} 是否被占用..."
+  if port_in_use?(port)
+    puts "⚠️  端口 #{port} 被占用，正在终止相关进程..."
+    system("lsof -ti:#{port} | xargs kill -9 2>/dev/null")
+    sleep 2
+  end
+end
+
+# 检查并准备数据库
+def setup_database
+  puts "📦 检查数据库..."
+  
+  # 检查数据库是否存在
+  unless File.exist?('storage/development.sqlite3')
+    puts "🗄️  创建开发数据库..."
+    system('bin/rails db:create')
+  end
+  
+  puts "🔄 运行数据库迁移..."
+  system('bin/rails db:migrate')
+  
+  # 准备队列数据库
+  puts "🔄 准备队列数据库..."
+  system('bin/rails db:migrate:queue')
+  
+  # 准备缓存数据库
+  puts "🔄 准备缓存数据库..."
+  system('bin/rails db:migrate:cache')
+  
+  # 准备Cable数据库
+  puts "🔄 准备Cable数据库..."
+  system('bin/rails db:migrate:cable')
+end
+
+# 启动Solid Queue
+def start_solid_queue
+  puts "⚙️  启动 Solid Queue..."
+  pid = spawn('bin/jobs')
+  Process.detach(pid)
+  puts "✅ Solid Queue 已启动 (PID: #{pid})"
+  pid
+end
+
+# 启动Rails服务器
+def start_rails_server
+  puts "🚂 启动 Rails 服务器..."
+  puts "📍 访问地址: http://localhost:3000"
+  
+  # 使用exec来替换当前进程，这样Ctrl+C可以正常停止
+  exec('bin/rails', 'server', '-b', '0.0.0.0', '-p', '3000')
+end
+
+# 主流程
+begin
+  # 清理端口
+  kill_port_process(3000)
+  kill_port_process(45678) # Solid Queue默认端口
+  
+  # 设置数据库
+  setup_database
+  
+  # 启动Solid Queue
+  queue_pid = start_solid_queue
+  
+  # 等待队列服务启动
+  sleep 3
+  
+  # 启动Rails服务器（这会阻塞当前进程）
+  start_rails_server
+  
+rescue Interrupt
+  puts "\n🛑 正在停止服务..."
+  
+  # 停止Solid Queue
+  if defined?(queue_pid)
+    begin
+      Process.kill('TERM', queue_pid)
+      puts "✅ Solid Queue 已停止"
+    rescue Errno::ESRCH
+      puts "⚠️  Solid Queue 进程不存在"
+    end
+  end
+  
+  puts "👋 开发环境服务已停止"
+  exit 0
+end

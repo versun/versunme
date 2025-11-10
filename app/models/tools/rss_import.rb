@@ -3,6 +3,8 @@ module Tools
     require "feedjira"
     require "cgi"
     require "open-uri"
+    require "nokogiri"
+    require "securerandom"
     # include ActiveStorage::SetCurrent
     def initialize(url, import_images = false)
       @url = url
@@ -17,41 +19,54 @@ module Tools
         level: :info,
         description: "Start Import from: #{@url}, import images: #{@import_images}"
       )
-      feed = Feedjira.parse(URI.open(@url).read)
+
+      # 使用更现代的方式获取RSS内容
+      uri = URI.parse(@url)
+      response = uri.open
+      feed = Feedjira.parse(response.read)
+
+      # 检查是否有条目
+      if feed.entries.empty?
+        ActivityLog.create!(
+          action: "import",
+          target: "import",
+          level: :warn,
+          description: "No entries found in RSS feed from: #{@url}"
+        )
+        return true
+      end
 
       feed.entries.each do |item|
-        # slug = item.title ? item.title.parameterize : item.published
-        if item.url.nil?
-          next
+        next if item.url.blank?
+
+        entry_url     = CGI.unescape(item.url.to_s)
+        title         = (item.title || item.published || "Untitled").to_s
+        slug_source   = entry_url.split("/").last.presence || title
+        slug          = slug_source.parameterize.presence || "article-#{Time.current.to_i}"
+        item_content  = item.content || item.summary || item.description || ""
+
+        doc = Nokogiri::HTML::DocumentFragment.parse(item_content)
+
+        if @import_images
+          begin
+            doc, _attachables = import_images(doc, title, base_url: entry_url)
+          rescue => e
+            Rails.logger.error "Image import failed for '#{title}': #{e.message}"
+          end
         end
 
-        encoded_link = item.url
-        decoded_link = CGI.unescape(encoded_link)
-        title = (item.title || item.published).to_s
-        slug = decoded_link.split("/").last
-        content = ActionText::Content.new(item.content)
-        # get all images in the content and download them and then add them to the article content
-        doc = Nokogiri::HTML(content.to_s)
+        processed_content = doc.to_html
 
-
-         # doc, content.attachables = import_images(doc) if @import_images
-         if @import_images
-            begin
-              doc, attachables = import_images(doc, title)
-              content.attachables.concat(attachables)
-            rescue StandardError => e
-              raise "Image import failed: #{e.message}"
-            end
-         end
-
-        content = doc.to_html
-        Article.create(status: :publish,
-                      title: title,
-                      content: content,
-                      created_at: item.published,
-                      slug: slug,
-                      description: item.summary,
-                      )
+        article = Article.new(
+          status: :publish,
+          title: title,
+          created_at: item.published || Time.current,
+          slug: slug,
+          description: item.summary || ""
+        )
+        # 关键：通过 Action Text 赋值，而不是同名列
+        article.content = processed_content
+        article.save!
       end
       ActivityLog.create!(
         action: "import",
@@ -75,29 +90,50 @@ module Tools
       attachables = []
       doc.css("img").each do |img|
         src = img["src"]
-        next unless src
+        next unless src.present?
+
+        # 跳过数据URI和数据URL
+        next if src.start_with?('data:')
+
+        # 确保URL是完整的
+        full_src = src.start_with?('http') ? src : URI.join(@url, src).to_s
 
         begin
-          URI.open(src) do |io|
+          URI.open(full_src) do |io|
+            # 获取内容类型和文件扩展名
+            content_type = io.content_type || 'application/octet-stream'
+            extension = content_type.split("/").last
+
+            # 处理特殊的content_type
+            case extension
+            when 'jpeg'
+              extension = 'jpg'
+            when 'svg+xml'
+              extension = 'svg'
+            end
+
+            filename = "#{title.parameterize}-#{SecureRandom.hex(4)}.#{extension}"
+
             blob = ActiveStorage::Blob.create_and_upload!(
               io: io,
-              filename: "#{title.parameterize}-#{SecureRandom.hex(4)}.#{io.content_type.split("/").last}",
-              content_type: io.content_type
+              filename: filename,
+              content_type: content_type
             )
             attachables << blob
 
-            # Update image URL in content
+            # Update image URL in content - 使用ActionText附件格式
             attachment = ActionText::Attachment.from_attachable(blob)
-            relative_url = Rails.application.routes.url_helpers.rails_blob_path(blob, only_path: true)
-            attachment.node["url"] = relative_url
             img.replace(attachment.node.to_html)
           end
         rescue StandardError => e
-          raise "Failed to download image: #{src} #{e}"
+          Rails.logger.error "Failed to download image: #{full_src} - #{e.message}"
+          # 不中断整个过程，只是记录错误
+          next
         end
       end
       return doc, attachables
     end
+
     def error_message
       @error_message
     end

@@ -1,7 +1,8 @@
 class Setting < ApplicationRecord
   has_rich_text :footer
   before_save :generate_social_links
-
+  serialize :sociallinks, coder: JSON
+  serialize :staticfiles, coder: JSON
   SOCIAL_PLATFORMS = {
     github: {
       icon_path: "github.svg"

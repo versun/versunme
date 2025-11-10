@@ -2,6 +2,7 @@ source "https://rubygems.org"
 ## for blog
 
 # gem "html_truncator"
+gem "sqlite3"
 gem "ruby-vips"
 gem "mastodon-api", require: "mastodon"
 gem "x"
@@ -9,21 +10,18 @@ gem "aws-sdk-s3"
 gem "open-uri"
 gem "feedjira"
 gem "will_paginate"
-gem "ahoy_matey"
 gem "mission_control-jobs"
 gem "algoliasearch-rails"
 gem "csv"
 gem "zip"
-
+gem 'rails_pulse'
 # gem "groupdate"
 ##
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.0.0"
+gem "rails", "~> 8.1.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
-gem "pg"
-gem "pg_search"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
@@ -80,5 +78,4 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
-  gem "sqlite3"
 end

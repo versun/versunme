@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "articles#index"
-  get "/analytics" => "analytics#index"
+
   resources :users
   resource :session
   resources :passwords
@@ -41,7 +41,7 @@ Rails.application.routes.draw do
   get "/sitemap.xml" => "sitemap#index", format: "xml", as: :sitemap
 
   get "/admin" => "admin#posts"
-  # get "/admin/analytics" => "analytics#index", as: "analytics"
+
   get "/admin/posts" => "admin#posts"
   get "/admin/posts/new", to: "articles#new"
   get "/admin/pages" => "admin#pages"
@@ -49,6 +49,7 @@ Rails.application.routes.draw do
   get "/admin/newsletters", to: "newsletters#edit", as: "newsletter"
   patch "/admin/newsletters", to: "newsletters#update", as: "update_newsletter"
   mount MissionControl::Jobs::Engine, at: "/admin/jobs", as: "admin_jobs"
+  mount RailsPulse::Engine => "/admin/rails_pulse"
 
   scope path: Rails.application.config.article_route_prefix do
     get "/" => "articles#index", as: :articles

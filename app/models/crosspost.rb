@@ -14,6 +14,7 @@ class Crosspost < ApplicationRecord
   scope :mastodon, -> { find_or_create_by(platform: "mastodon") }
   scope :twitter, -> { find_or_create_by(platform: "twitter") }
   scope :bluesky, -> { find_or_create_by(platform: "bluesky") }
+  serialize :crossposturls, coder: JSON
 
   def mastodon?
     platform == "mastodon"

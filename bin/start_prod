@@ -1,0 +1,154 @@
+#!/usr/bin/env ruby
+
+# 生产环境一键启动脚本
+# 启动服务：Rails服务器（包含Solid Queue）+ 环境检查
+
+require 'fileutils'
+require 'open3'
+
+puts "🚀 启动生产环境服务..."
+puts "=" * 50
+
+# 检查是否在生产环境
+def check_production_env
+  if ENV['RAILS_ENV'] != 'production'
+    puts "⚠️  警告: 当前环境不是 production (RAILS_ENV=#{ENV['RAILS_ENV'] || '未设置'})"
+    print "是否继续启动? (y/N): "
+    response = gets.chomp.downcase
+    unless response == 'y'
+      puts "❌ 取消启动"
+      exit 1
+    end
+  end
+end
+
+# 检查必要的生产环境配置
+def check_production_setup
+  puts "🔍 检查生产环境配置..."
+  
+  # 检查master key
+  unless File.exist?('config/master.key')
+    puts "❌ 错误: 缺少 config/master.key 文件"
+    puts "请确保 RAILS_MASTER_KEY 环境变量已设置或 config/master.key 文件存在"
+    exit 1
+  end
+  
+  # 检查数据库
+  unless File.exist?('storage/production.sqlite3')
+    puts "🗄️  创建生产数据库..."
+    system('bin/rails db:create')
+  end
+  
+  puts "✅ 生产环境配置检查完成"
+end
+
+# 准备数据库
+def setup_database
+  puts "📦 准备生产数据库..."
+  
+  puts "🔄 运行数据库迁移..."
+  unless system('bin/rails db:migrate')
+    puts "❌ 数据库迁移失败"
+    exit 1
+  end
+  
+  # 准备队列数据库
+  puts "🔄 准备队列数据库..."
+  unless system('bin/rails db:migrate:queue')
+    puts "❌ 队列数据库迁移失败"
+    exit 1
+  end
+  
+  # 准备缓存数据库
+  puts "🔄 准备缓存数据库..."
+  unless system('bin/rails db:migrate:cache')
+    puts "❌ 缓存数据库迁移失败"
+    exit 1
+  end
+  
+  # 准备Cable数据库
+  puts "🔄 准备Cable数据库..."
+  unless system('bin/rails db:migrate:cable')
+    puts "❌ Cable数据库迁移失败"
+    exit 1
+  end
+  
+  puts "✅ 数据库准备完成"
+end
+
+# 编译资产
+def compile_assets
+  puts "📦 编译生产资产..."
+  
+  # 清理旧资产
+  system('bin/rails assets:clobber')
+  
+  # 预编译资产
+  unless system('bin/rails assets:precompile')
+    puts "❌ 资产编译失败"
+    exit 1
+  end
+  
+  puts "✅ 资产编译完成"
+end
+
+# 启动Rails服务器（生产模式）
+def start_rails_server
+  puts "🚂 启动 Rails 生产服务器..."
+  puts "📍 访问地址: http://localhost:3000"
+  puts "⚡ Solid Queue 将在 Puma 进程中运行"
+  
+  # 设置生产环境变量
+  ENV['SOLID_QUEUE_IN_PUMA'] = 'true'
+  
+  # 使用exec来替换当前进程，这样Ctrl+C可以正常停止
+  exec('bin/rails', 'server', '-b', '0.0.0.0', '-p', '3000', '-e', 'production')
+end
+
+# 显示状态信息
+def show_status
+  puts ""
+  puts "🎯 生产环境状态:"
+  puts "   • 环境: #{ENV['RAILS_ENV'] || 'production'}"
+  puts "   • 数据库: SQLite (storage/production.sqlite3)"
+  puts "   • 队列: Solid Queue (集成在Puma中)"
+  puts "   • 缓存: Solid Cache"
+  puts "   • Cable: Solid Cable"
+  puts ""
+  puts "📋 可用命令:"
+  puts "   • 查看日志: tail -f log/production.log"
+  puts "   • 重启服务: Ctrl+C 然后重新运行脚本"
+  puts "   • 进入控制台: bin/rails console"
+  puts ""
+  puts "🚀 正在启动服务..."
+  puts "=" * 50
+end
+
+# 主流程
+begin
+  # 检查环境
+  check_production_env
+  
+  # 检查配置
+  check_production_setup
+  
+  # 准备数据库
+  setup_database
+  
+  # 编译资产（生产环境需要）
+  compile_assets
+  
+  # 显示状态信息
+  show_status
+  
+  # 启动Rails服务器（这会阻塞当前进程）
+  start_rails_server
+  
+rescue Interrupt
+  puts "\n🛑 正在停止服务..."
+  puts "👋 生产环境服务已停止"
+  exit 0
+rescue => e
+  puts "❌ 错误: #{e.message}"
+  exit 1
+end
