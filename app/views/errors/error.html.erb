@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= @error_title %> - <%= current_site&.name || "Site" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .error-container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 600px;
+    }
+    .error-code {
+      font-size: 6rem;
+      font-weight: bold;
+      color: #dc3545;
+      margin: 0;
+    }
+    .error-title {
+      font-size: 1.5rem;
+      margin: 1rem 0;
+      color: #495057;
+    }
+    .error-message {
+      font-size: 1rem;
+      color: #6c757d;
+      margin-bottom: 2rem;
+    }
+    .back-link {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 0.25rem;
+      transition: background-color 0.2s;
+    }
+    .back-link:hover {
+      background-color: #0056b3;
+    }
+    .site-info {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #dee2e6;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <h1 class="error-code"><%= @error_status %></h1>
+    <h2 class="error-title"><%= @error_title %></h2>
+    <% if @error_message.present? %>
+      <p class="error-message"><%= @error_message %></p>
+    <% end %>
+    
+    <a href="/" class="back-link">Go to Homepage</a>
+    
+    <% if current_site.present? %>
+      <div class="site-info">
+        Current Site: <%= current_site.name %><br>
+        <% if current_site.subdomain.present? %>
+          Subdomain: <%= current_site.subdomain %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</body>
+</html>

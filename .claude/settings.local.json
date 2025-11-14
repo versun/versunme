@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bundle exec rake:*)",
+      "Bash(rails:*)",
+      "Bash(curl:*)",
+      "Bash(bin/rails server:*)",
+      "Bash(pkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

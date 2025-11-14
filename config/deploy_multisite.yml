@@ -1,0 +1,172 @@
+# Multisite deployment configuration for VersunCMS
+# This configuration supports subdomain-based multisite deployment
+
+# Name of your application
+service: versuncms-multisite
+
+# Name of the container image
+image: versunatdocker/versuncms
+
+# Deploy to these servers
+servers:
+  web:
+    hosts:
+      - 192.168.0.1
+    labels:
+      traefik.enable: "true"
+      # Main domain routing
+      traefik.http.routers.versuncms-main.rule: "Host(`example.com`) || Host(`www.example.com`)"
+      traefik.http.routers.versuncms-main.entrypoints: "websecure"
+      traefik.http.routers.versuncms-main.tls.certresolver: "letsencrypt"
+      
+      # Wildcard subdomain routing for multisite
+      traefik.http.routers.versuncms-wildcard.rule: "HostRegexp(`{subdomain:[a-z0-9-]+}.example.com`)"
+      traefik.http.routers.versuncms-wildcard.entrypoints: "websecure"
+      traefik.http.routers.versuncms-wildcard.tls.certresolver: "letsencrypt"
+      
+      # Service configuration
+      traefik.http.services.versuncms.loadbalancer.server.port: "80"
+      
+      # Health check
+      traefik.http.services.versuncms.loadbalancer.healthcheck.path: "/up"
+      traefik.http.services.versuncms.loadbalancer.healthcheck.interval: "30s"
+    
+    # Environment variables for multisite
+    env:
+      DEFAULT_DOMAIN: "example.com"
+      MULTISITE_ENABLED: "true"
+      ARTICLE_ROUTE_PREFIX: ""
+      
+  job:
+    hosts:
+      - 192.168.0.1
+    cmd: bin/jobs
+    env:
+      DEFAULT_DOMAIN: "example.com"
+      MULTISITE_ENABLED: "true"
+
+# Enable SSL auto certification via Let's Encrypt
+proxy:
+  ssl: true
+  host: example.com
+  
+  # Traefik configuration for multisite
+  options:
+    publish:
+      - "443:443"
+      - "80:80"
+    volume:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+
+# Credentials for your image host
+registry:
+  username: versunatdocker
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Environment variables
+env:
+  secret:
+    - RAILS_MASTER_KEY
+  clear:
+    # Multisite configuration
+    DEFAULT_DOMAIN: "example.com"
+    MULTISITE_ENABLED: "true"
+    ARTICLE_ROUTE_PREFIX: ""
+    
+    # Performance optimization
+    RAILS_CACHE_STORE: "memory_store"
+    RAILS_LOG_LEVEL: "info"
+    
+    # Database configuration for multisite
+    DB_HOST: "versuncms-db"
+    DB_POOL_SIZE: "25"
+    
+    # Redis configuration for caching (optional)
+    REDIS_URL: "redis://versuncms-redis:6379/0"
+    
+    # Solid Queue configuration
+    SOLID_QUEUE_IN_PUMA: "true"
+    JOB_CONCURRENCY: "3"
+    WEB_CONCURRENCY: "2"
+
+# Aliases for common tasks
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole"
+  
+  # Multisite-specific aliases
+  multisite:setup: app exec --interactive --reuse "bin/rails multisite:setup"
+  multisite:status: app exec --interactive --reuse "bin/rails multisite:status"
+  cache:warm: app exec --interactive --reuse "bin/rails cache:warm_all"
+
+# Use a persistent storage volume
+volumes:
+  - "versuncms_storage:/rails/storage"
+  - "versuncms_letsencrypt:/letsencrypt"
+
+# Asset configuration
+asset_path: /rails/public/assets
+
+# Configure the image builder
+builder:
+  arch: amd64
+  args:
+    RUBY_VERSION: 3.4.1
+
+# SSL/TLS configuration
+ssl:
+  # Generate wildcard certificate for all subdomains
+  domains:
+    - "example.com"
+    - "*.example.com"
+  
+  # Use Let's Encrypt for SSL certificates
+  provider: letsencrypt
+  
+  # Email for Let's Encrypt registration
+  email: admin@example.com
+
+# Use accessory services
+accessories:
+  # Database service
+  db:
+    image: postgres:15
+    host: 192.168.0.2
+    port: "5432"
+    env:
+      clear:
+        POSTGRES_DB: versuncms_production
+        POSTGRES_USER: versuncms
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+    
+  # Redis service for caching (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    host: 192.168.0.2
+    port: 6379
+    directories:
+      - data:/data
+    command: redis-server --appendonly yes
+
+# Health checks
+healthcheck:
+  cmd: "curl -f http://localhost:80/up || exit 1"
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s

@@ -1,0 +1,144 @@
+<%= form_with(model: [:admin, site], local: true) do |form| %>
+  <% if site.errors.any? %>
+    <div class="error-explanation">
+      <h4><%= pluralize(site.errors.count, "个错误") %> 阻止了站点保存:</h4>
+      <ul>
+        <% site.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <%= form.label :name, "站点名称" %>
+    <%= form.text_field :name, class: "form-control", required: true %>
+    <small class="form-text text-muted">站点的显示名称</small>
+  </div>
+
+  <div class="form-group">
+    <%= form.label :subdomain, "子域名" %>
+    <%= form.text_field :subdomain, class: "form-control", required: true %>
+    <small class="form-text text-muted">
+      只能包含小写字母、数字和连字符。例如: blog, tech, news
+    </small>
+  </div>
+
+  <div class="form-group">
+    <%= form.label :description, "描述" %>
+    <%= form.text_area :description, class: "form-control", rows: 3 %>
+    <small class="form-text text-muted">站点的简要描述（可选）</small>
+  </div>
+
+  <div class="form-group">
+    <%= form.label :is_active, "状态" %>
+    <div class="form-check">
+      <%= form.check_box :is_active, class: "form-check-input" %>
+      <%= form.label :is_active, "激活站点", class: "form-check-label" %>
+    </div>
+    <small class="form-text text-muted">只有激活的站点才能被访问</small>
+  </div>
+
+  <div class="form-group">
+    <%= form.label :site_config, "站点配置 (JSON格式)" %>
+    <%= form.text_area :site_config, class: "form-control", rows: 5, 
+                       placeholder: '{"theme": "default", "language": "zh-CN"}' %>
+    <small class="form-text text-muted">高级配置选项，请使用有效的JSON格式</small>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit site.new_record? ? "创建站点" : "更新站点", class: "btn btn-primary" %>
+    <%= link_to "取消", admin_sites_path, class: "btn btn-secondary" %>
+  </div>
+<% end %>
+
+<style>
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-check {
+  margin-bottom: 10px;
+}
+
+.form-check-input {
+  margin-right: 8px;
+}
+
+.form-text {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.error-explanation {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.error-explanation h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.error-explanation ul {
+  margin-bottom: 0;
+}
+
+.form-actions {
+  margin-top: 30px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #545b62;
+}
+</style>

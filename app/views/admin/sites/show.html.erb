@@ -1,0 +1,201 @@
+<h1>站点详情</h1>
+
+<div class="site-details">
+  <div class="site-info">
+    <h2><%= @site.name %></h2>
+    
+    <div class="info-grid">
+      <div class="info-item">
+        <label>子域名:</label>
+        <span><%= @site.subdomain %></span>
+      </div>
+      
+      <div class="info-item">
+        <label>状态:</label>
+        <span class="status <%= @site.is_active ? 'active' : 'inactive' %>">
+          <%= @site.is_active ? '激活' : '停用' %>
+        </span>
+      </div>
+      
+      <div class="info-item">
+        <label>访问地址:</label>
+        <span><%= link_to @site.full_domain, "http://#{@site.full_domain}", target: "_blank" %></span>
+      </div>
+      
+      <% if @site.description.present? %>
+        <div class="info-item full-width">
+          <label>描述:</label>
+          <span><%= @site.description %></span>
+        </div>
+      <% end %>
+      
+      <% if @site.site_config.present? %>
+        <div class="info-item full-width">
+          <label>站点配置:</label>
+          <pre><%= JSON.pretty_generate(@site.config_hash) %></pre>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="site-stats">
+    <h3>内容统计</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h4>文章</h4>
+        <p class="stat-number"><%= @site.articles.count %></p>
+      </div>
+      <div class="stat-card">
+        <h4>页面</h4>
+        <p class="stat-number"><%= @site.pages.count %></p>
+      </div>
+      <div class="stat-card">
+        <h4>用户</h4>
+        <p class="stat-number"><%= @site.users.count %></p>
+      </div>
+      <div class="stat-card">
+        <h4>配置</h4>
+        <p class="stat-number"><%= @site.site_settings.count %></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="site-actions">
+    <%= link_to "编辑", edit_admin_site_path(@site), class: "btn btn-primary" %>
+    <%= link_to "返回列表", admin_sites_path, class: "btn btn-secondary" %>
+    
+    <% if @site.is_active %>
+      <%= link_to "停用", deactivate_admin_site_path(@site), 
+                  method: :post, 
+                  class: "btn btn-warning",
+                  data: { confirm: "确定要停用站点 '#{@site.name}' 吗？" } %>
+    <% else %>
+      <%= link_to "激活", activate_admin_site_path(@site), 
+                  method: :post, 
+                  class: "btn btn-success" %>
+    <% end %>
+  </div>
+</div>
+
+<style>
+.site-details {
+  max-width: 800px;
+  margin: 20px 0;
+}
+
+.site-info {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.site-info h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.info-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.info-item label {
+  font-weight: 600;
+  margin-right: 10px;
+  min-width: 80px;
+  color: #555;
+}
+
+.info-item span {
+  flex: 1;
+}
+
+.status.active {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.status.inactive {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+pre {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12px;
+  margin: 0;
+}
+
+.site-stats {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.stat-card h4 {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+}
+
+.site-actions {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-success { background: #28a745; color: white; }
+.btn-warning { background: #ffc107; color: black; }
+</style>

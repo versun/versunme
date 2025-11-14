@@ -1,0 +1,175 @@
+<h1>站点管理</h1>
+
+<div class="sites-management">
+  <div class="action-buttons">
+    <%= link_to "新建站点", new_admin_site_path, class: "btn btn-primary" %>
+  </div>
+
+  <table class="sites-table">
+    <thead>
+      <tr>
+        <th>站点名称</th>
+        <th>子域名</th>
+        <th>描述</th>
+        <th>状态</th>
+        <th>内容统计</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @sites.each do |site| %>
+        <tr class="site-row <%= 'current-site' if site == current_admin_site %>">
+          <td class="site-name">
+            <strong><%= site.name %></strong>
+            <% if site == current_admin_site %>
+              <span class="current-indicator">(当前)</span>
+            <% end %>
+          </td>
+          <td class="site-subdomain">
+            <%= link_to "#{site.subdomain}.#{Rails.application.config.default_domain || 'localhost:3000'}", 
+                        "http://#{site.subdomain}.localhost:3000", 
+                        target: "_blank", 
+                        class: "subdomain-link" %>
+          </td>
+          <td class="site-description"><%= site.description&.truncate(50) %></td>
+          <td class="site-status">
+            <% if site.is_active %>
+              <span class="status-active">激活</span>
+            <% else %>
+              <span class="status-inactive">停用</span>
+            <% end %>
+          </td>
+          <td class="site-stats">
+            <span class="stat">文章: <%= site.articles.count %></span>
+            <span class="stat">页面: <%= site.pages.count %></span>
+            <span class="stat">用户: <%= site.users.count %></span>
+          </td>
+          <td class="site-actions">
+            <div class="action-links">
+              <%= link_to "查看", admin_site_path(site), class: "btn btn-sm btn-info" %>
+              <%= link_to "编辑", edit_admin_site_path(site), class: "btn btn-sm btn-warning" %>
+              
+              <% if site.is_active %>
+                <%= link_to "停用", deactivate_admin_site_path(site), 
+                            method: :post, 
+                            class: "btn btn-sm btn-danger",
+                            data: { confirm: "确定要停用站点 '#{site.name}' 吗？" } %>
+              <% else %>
+                <%= link_to "激活", activate_admin_site_path(site), 
+                            method: :post, 
+                            class: "btn btn-sm btn-success" %>
+              <% end %>
+              
+              <% if site.articles.empty? && site.pages.empty? %>
+                <%= link_to "删除", admin_site_path(site), 
+                            method: :delete, 
+                            class: "btn btn-sm btn-danger",
+                            data: { confirm: "确定要删除站点 '#{site.name}' 吗？此操作不可恢复。" } %>
+              <% end %>
+            </div>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<style>
+.sites-management {
+  margin: 20px 0;
+}
+
+.action-buttons {
+  margin-bottom: 20px;
+}
+
+.sites-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sites-table th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.sites-table td {
+  padding: 12px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.site-row.current-site {
+  background-color: #e3f2fd;
+}
+
+.current-indicator {
+  color: #1976d2;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.subdomain-link {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.subdomain-link:hover {
+  text-decoration: underline;
+}
+
+.status-active {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.status-inactive {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.site-stats {
+  font-size: 12px;
+}
+
+.stat {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 6px;
+  background: #f8f9fa;
+  border-radius: 3px;
+}
+
+.action-links {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-info { background: #17a2b8; color: white; }
+.btn-warning { background: #ffc107; color: black; }
+.btn-success { background: #28a745; color: white; }
+.btn-danger { background: #dc3545; color: white; }
+</style>

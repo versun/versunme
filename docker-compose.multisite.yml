@@ -1,0 +1,153 @@
+# Docker Compose configuration for VersunCMS multisite development
+# This setup includes all necessary services for multisite functionality
+
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=development
+      - DEFAULT_DOMAIN=localhost:3000
+      - MULTISITE_ENABLED=true
+      - DATABASE_URL=postgresql://postgres:password@db:5432/versuncms_development
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_CACHE_STORE=redis_cache_store
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+      - storage:/rails/storage
+    depends_on:
+      - db
+      - redis
+    command: >
+      bash -c "rm -f tmp/pids/server.pid &&
+               bundle exec rails db:prepare &&
+               bundle exec rails server -b 0.0.0.0"
+    networks:
+      - versuncms_network
+
+  # Database service
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=versuncms_development
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - versuncms_network
+
+  # Redis service for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - versuncms_network
+
+  # Nginx reverse proxy for multisite subdomain handling
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx_development.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - versuncms_network
+
+  # Traefik for advanced routing (alternative to nginx)
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@localhost"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "8080:8080"  # Traefik dashboard
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    networks:
+      - versuncms_network
+
+  # Background job processing
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - RAILS_ENV=development
+      - DEFAULT_DOMAIN=localhost:3000
+      - MULTISITE_ENABLED=true
+      - DATABASE_URL=postgresql://postgres:password@db:5432/versuncms_development
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+      - storage:/rails/storage
+    command: bundle exec solid_queue:start
+    depends_on:
+      - db
+      - redis
+    networks:
+      - versuncms_network
+
+  # Cache warming service
+  cache_warmer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - RAILS_ENV=development
+      - DEFAULT_DOMAIN=localhost:3000
+      - MULTISITE_ENABLED=true
+      - DATABASE_URL=postgresql://postgres:password@db:5432/versuncms_development
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+    command: >
+      bash -c "sleep 30 &&
+               bundle exec rails cache:warm_all &&
+               echo 'Cache warming completed'"
+    depends_on:
+      - db
+      - redis
+      - app
+    networks:
+      - versuncms_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  bundle_cache:
+  storage:
+  letsencrypt:
+
+networks:
+  versuncms_network:
+    driver: bridge
