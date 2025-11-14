@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_13_104720) do
   create_table "action_text_rich_texts", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -66,10 +66,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
     t.string "description"
     t.datetime "scheduled_at"
     t.boolean "send_newsletter", default: false, null: false
+    t.integer "site_id", null: false
     t.string "slug"
     t.integer "status", null: false
     t.string "title"
     t.datetime "updated_at", null: false
+    t.index ["site_id", "slug"], name: "index_articles_on_site_id_and_slug", unique: true
+    t.index ["site_id"], name: "index_articles_on_site_id"
     t.index ["slug"], name: "index_articles_on_slug", unique: true
   end
 
@@ -107,10 +110,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
     t.datetime "created_at", null: false
     t.integer "page_order", default: 0, null: false
     t.string "redirect_url"
+    t.integer "site_id", null: false
     t.string "slug"
     t.integer "status", null: false
     t.string "title"
     t.datetime "updated_at", null: false
+    t.index ["site_id", "slug"], name: "index_pages_on_site_id_and_slug", unique: true
+    t.index ["site_id"], name: "index_pages_on_site_id"
     t.index ["slug"], name: "index_pages_on_slug", unique: true
   end
 
@@ -126,9 +132,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "ip_address"
+    t.integer "site_id", null: false
     t.datetime "updated_at", null: false
     t.string "user_agent"
     t.integer "user_id", null: false
+    t.index ["site_id"], name: "index_sessions_on_site_id"
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -139,6 +147,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
     t.text "description"
     t.text "giscus"
     t.text "head_code"
+    t.integer "site_id", null: false
     t.json "social_links"
     t.json "static_files", default: {}
     t.string "time_zone", default: "UTC"
@@ -146,6 +155,20 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
     t.text "tool_code"
     t.datetime "updated_at", null: false
     t.string "url"
+    t.index ["site_id"], name: "index_settings_on_site_id", unique: true
+  end
+
+  create_table "sites", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "default_theme", default: "default"
+    t.text "description"
+    t.boolean "is_active", default: true, null: false
+    t.string "name", null: false
+    t.text "site_config"
+    t.string "subdomain", null: false
+    t.datetime "updated_at", null: false
+    t.index ["is_active"], name: "index_sites_on_is_active"
+    t.index ["subdomain"], name: "index_sites_on_subdomain", unique: true
   end
 
   create_table "social_media_posts", force: :cascade do |t|
@@ -171,13 +194,21 @@ ActiveRecord::Schema[8.1].define(version: 2025_03_03_121724) do
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "password_digest", null: false
+    t.integer "site_id", null: false
     t.datetime "updated_at", null: false
     t.string "user_name", null: false
+    t.index ["site_id", "user_name"], name: "index_users_on_site_id_and_user_name", unique: true
+    t.index ["site_id"], name: "index_users_on_site_id"
     t.index ["user_name"], name: "index_users_on_user_name", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "articles", "sites"
+  add_foreign_key "pages", "sites"
+  add_foreign_key "sessions", "sites"
   add_foreign_key "sessions", "users"
+  add_foreign_key "settings", "sites"
   add_foreign_key "social_media_posts", "articles"
+  add_foreign_key "users", "sites"
 end

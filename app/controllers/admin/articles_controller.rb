@@ -2,7 +2,7 @@ class Admin::ArticlesController < Admin::BaseController
   before_action :set_article, only: [ :show, :edit, :update, :destroy, :publish, :unpublish ]
 
   def index
-    @scope = Article.all
+    @scope = Article.where(site: current_admin_site) # Filter by admin-selected site
     @articles = fetch_articles(@scope)
     @path = admin_articles_path
   end
@@ -12,6 +12,7 @@ class Admin::ArticlesController < Admin::BaseController
 
   def new
     @article = Article.new
+    @article.site = current_admin_site # Pre-populate with admin-selected site
   end
 
   def edit
@@ -19,6 +20,7 @@ class Admin::ArticlesController < Admin::BaseController
 
   def create
     @article = Article.new(article_params)
+    @article.site = current_admin_site # Associate with admin-selected site
 
     respond_to do |format|
       if @article.save
@@ -53,14 +55,14 @@ class Admin::ArticlesController < Admin::BaseController
   end
 
   def drafts
-    @scope = Article.draft
+    @scope = Article.draft.where(site: current_admin_site)
     @articles = fetch_articles(@scope)
     @path = drafts_admin_articles_path
     render :index
   end
 
   def scheduled
-    @scope = Article.scheduled
+    @scope = Article.scheduled.where(site: current_admin_site)
     @articles = fetch_articles(@scope)
     @path = scheduled_admin_articles_path
     render :index
@@ -86,6 +88,11 @@ class Admin::ArticlesController < Admin::BaseController
 
   def set_article
     @article = Article.find_by!(slug: params[:id])
+    
+    # Verify the article belongs to admin-selected site
+    if @article.site_id != current_admin_site.id
+      raise ActiveRecord::RecordNotFound, "Article not found in current site"
+    end
   end
 
   def article_params

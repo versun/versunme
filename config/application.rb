@@ -15,12 +15,19 @@ module VersunCms
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
+    
+    # 加载子域名中间件
+    require_relative '../lib/subdomain_middleware'
+    config.middleware.use SubdomainMiddleware
 
     config.mission_control.jobs.base_controller_class = "AdminController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
     # Set the article route prefix, default: example.com/article_slug
     config.article_route_prefix = ENV.fetch("ARTICLE_ROUTE_PREFIX", "")
+    
+    # Default domain for multisite functionality
+    config.default_domain = ENV.fetch("DEFAULT_DOMAIN", "localhost")
     def self.git_version
       @git_version ||= begin
         if File.exist?("REVISION")

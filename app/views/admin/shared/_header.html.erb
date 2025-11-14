@@ -2,6 +2,15 @@
   <table width="100%">
     <tr>
       <td>
+        <% if @available_sites&.size > 1 %>
+          <%= form_tag url_for, method: :get, class: "site-switcher-form", style: "display: inline-block;" do %>
+            <%= select_tag :switch_site, 
+                options_from_collection_for_select(@available_sites, :id, :name, current_admin_site.id),
+                onchange: "this.form.submit()",
+                class: "site-selector",
+                style: "margin-right: 10px;" %>
+          <% end %>
+        <% end %>
         | <%= link_to "Posts", admin_articles_path, class: "admin-nav-link" %> |
         <%= link_to "Pages", admin_pages_path, class: "admin-nav-link" %> |
       </td>
@@ -12,6 +21,7 @@
         <%= link_to "Newsletter", admin_newsletter_path, class: "tool-link" %> |
       </td>
       <td>
+        <%= link_to "Sites", admin_sites_path, class: "admin-nav-link" %> |
         <%= link_to "Jobs", admin_jobs_path, class: "tool-link" %> |
         <%= link_to "Settings", edit_setting_path, class: "admin-nav-link" %> |
         <%= link_to "Account", edit_user_path(Current.user), class: "admin-nav-link" %> |

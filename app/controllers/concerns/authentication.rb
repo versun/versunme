@@ -27,13 +27,20 @@ module Authentication
     end
 
     def find_session_by_cookie
-      Session.find_by(id: cookies.signed[:session_id])
+      Session.find_by(id: cookies.signed[:session_id], site_id: current_site.id)
     end
 
 
     def request_authentication
       session[:return_to_after_authenticating] = request.url
-      redirect_to new_session_path
+
+      # Check if any users exist in the system
+      if User.unscoped_all.exists?
+        redirect_to new_session_path
+      else
+        # No users exist, redirect to registration
+        redirect_to new_user_path
+      end
     end
 
     def after_authentication_url
@@ -42,7 +49,11 @@ module Authentication
 
 
     def start_new_session_for(user)
-      user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
+      user.sessions.create!(
+        user_agent: request.user_agent, 
+        ip_address: request.remote_ip,
+        site_id: current_site.id
+      ).tap do |session|
         Current.session = session
         cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax }
       end

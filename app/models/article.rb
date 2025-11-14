@@ -1,4 +1,9 @@
 class Article < ApplicationRecord
+  include MultisiteCacheable
+  include MultisiteQueryOptimization
+  include SiteStatisticsCache
+  
+  belongs_to :site
   has_rich_text :content
   has_many :social_media_posts, dependent: :destroy
   accepts_nested_attributes_for :social_media_posts, allow_destroy: true
@@ -7,13 +12,22 @@ class Article < ApplicationRecord
 
   before_validation :generate_title
   before_validation :generate_slug
-  validates :slug, presence: true, uniqueness: true
+  validates :slug, presence: true
+  validates :slug, uniqueness: { scope: :site_id }
+  validates :site_id, presence: true
   validates :scheduled_at, presence: true, if: :schedule?
+
+  # Default scope to filter by current site
+  default_scope -> { where(site_id: Current.site&.id || Site.active.first&.id) }
 
   scope :published, -> { where(status: :publish) }
   scope :by_status, ->(status) { where(status: status) }
   # scope :paginate, ->(page, per_page) { offset((page - 1) * per_page).limit(per_page) }
   scope :publishable, -> { where(status: :schedule).where("scheduled_at <= ?", Time.current) }
+  
+  # Override default scope when needed
+  scope :for_site, ->(site) { unscope(:where).where(site_id: site.id) }
+  scope :unscoped_all, -> { unscope(:where) }
 
   before_save :handle_time_zone, if: -> { schedule? && scheduled_at_changed? }
   before_save :cleanup_empty_social_media_posts

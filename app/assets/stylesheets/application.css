@@ -12,3 +12,28 @@ a:hover {
     text-decoration: underline wavy;
     background-color: #f0f0f0;
 }
+
+/* Admin Site Selector Styles */
+.site-switcher-form {
+    display: inline-block;
+    margin-right: 15px;
+}
+
+.site-selector {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.site-selector:hover {
+    border-color: #999;
+}
+
+.site-selector:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}

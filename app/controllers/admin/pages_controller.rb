@@ -2,7 +2,7 @@ class Admin::PagesController < Admin::BaseController
   before_action :set_page, only: [ :show, :edit, :update, :destroy, :reorder ]
 
   def index
-    @scope = Page.all
+    @scope = Page.where(site: current_admin_site) # Filter by admin-selected site
     @pages = fetch_articles(@scope, sort_by: :page_order)
     @path = admin_pages_path
   end
@@ -12,6 +12,7 @@ class Admin::PagesController < Admin::BaseController
 
   def new
     @page = Page.new
+    @page.site = current_admin_site # Pre-populate with admin-selected site
   end
 
   def edit
@@ -19,6 +20,7 @@ class Admin::PagesController < Admin::BaseController
 
   def create
     @page = Page.new(page_params)
+    @page.site = current_admin_site # Associate with admin-selected site
 
     respond_to do |format|
       if @page.save
@@ -67,6 +69,11 @@ class Admin::PagesController < Admin::BaseController
 
   def set_page
     @page = Page.find_by!(slug: params[:id])
+    
+    # Verify the page belongs to admin-selected site
+    if @page.site_id != current_admin_site.id
+      raise ActiveRecord::RecordNotFound, "Page not found in current site"
+    end
   end
 
   def page_params

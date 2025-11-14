@@ -2,8 +2,11 @@ module CacheableSettings
   extend ActiveSupport::Concern
 
   def self.site_info
-    Rails.cache.fetch("site_info", expires_in: 1.hour) do
-      setting = Setting.first
+    current_site_id = Current.site&.id || Site.active.first&.id
+    return {} unless current_site_id
+    
+    Article.cache_with_site("site_info", expires_in: 1.hour) do
+      setting = Setting.for_site(Site.find(current_site_id)).first
       return {} unless setting
 
       {
@@ -23,17 +26,22 @@ module CacheableSettings
   end
 
   def self.navbar_items
-    Rails.cache.fetch("navbar_items", expires_in: 1.hour) do
-      Page.published.order(page_order: :desc).select(:id, :title, :slug, :redirect_url)
+    current_site_id = Current.site&.id || Site.active.first&.id
+    return [] unless current_site_id
+    
+    Article.cache_with_site("navbar_items", expires_in: 1.hour) do
+      Page.for_site(Site.find(current_site_id)).published.order(page_order: :desc)
     end
   end
 
   def self.refresh_site_info
-    Rails.cache.delete("site_info")
+    current_site_id = Current.site&.id || Site.active.first&.id
+    Rails.cache.delete("site_info_#{current_site_id}") if current_site_id
   end
 
   def self.refresh_navbar_items
-    Rails.cache.delete("navbar_items")
+    current_site_id = Current.site&.id || Site.active.first&.id
+    Rails.cache.delete("navbar_items_#{current_site_id}") if current_site_id
   end
 
   def self.refresh_all

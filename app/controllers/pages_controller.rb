@@ -7,14 +7,19 @@ class PagesController < ApplicationController
   # GET /1
   def show
     if @page.nil? || (!%w[publish shared].include?(@page.status) && !authenticated?)
-      render file: Rails.public_path.join("404.html"), status: :not_found, layout: false
-      nil
+      render_error_page(404, "Page Not Found", "The page you requested could not be found.")
+      return
     end
+    
+    # Add site context to the response
+    response.headers["X-Site-Name"] = current_site.name
+    response.headers["X-Site-Subdomain"] = current_site.subdomain
   end
 
   # GET /Pages/new
   def new
     @page = Page.new
+    @page.site = current_site # Associate with current site
     max_order = Page.all.maximum(:page_order) || 0
     @page.page_order = max_order + 1
   end
@@ -27,6 +32,7 @@ class PagesController < ApplicationController
   # POST / or /Pages.json
   def create
     @page = Page.new(page_params)
+    @page.site = current_site # Associate with current site
 
     respond_to do |format|
       if @page.save
@@ -74,6 +80,12 @@ class PagesController < ApplicationController
 
   def set_Page
     @page = Page.find_by(slug: params[:slug])
+    
+    # Verify the page belongs to current site
+    if @page && @page.site_id != current_site.id
+      @page = nil
+      return
+    end
   end
 
   def page_params

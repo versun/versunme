@@ -9,27 +9,44 @@ class ArticlesController < ApplicationController
       format.html {
         @page = params[:page].present? ? params[:page].to_i : 1
         @per_page = 10
-
-        if params[:q].present?
-          # 使用SQLite搜索
-          @articles = Article.search_content(params[:q])
-                             .published
-                             .includes(:rich_text_content)
-                             .order(created_at: :desc)
-                             .paginate(page: @page, per_page: @per_page)
-          @total_count = @articles.total_entries
-        else
-          # 不搜索，只分页
-          @articles = Article.published
-                             .includes(:rich_text_content)
-                             .order(created_at: :desc)
-                             .paginate(page: @page, per_page: @per_page)
-          @total_count = @articles.total_entries
+        
+        # Use site-specific caching for better performance
+        cache_key = params[:q].present? ? "articles_search_#{params[:q]}_page_#{@page}" : "articles_page_#{@page}"
+        
+        cache_site_fragment(cache_key) do
+          if params[:q].present?
+            # Use SQLite search with caching
+            @articles = Article.search_content(params[:q])
+                               .published
+                               .includes(:rich_text_content)
+                               .order(created_at: :desc)
+                               .paginate(page: @page, per_page: @per_page)
+            @total_count = @articles.total_entries
+          else
+            # Use cached article list for better performance
+            cached_articles = Article.cache_with_site("articles_list") do
+              Article.published
+                     .includes(:rich_text_content)
+                     .order(created_at: :desc)
+                     .limit(100) # Cache first 100 articles
+            end
+            
+            # Get total count for pagination
+            @total_count = Article.published.count
+            
+            # Create WillPaginate::Collection for proper pagination
+            @articles = WillPaginate::Collection.create(@page, @per_page, @total_count) do |pager|
+              offset = (@page - 1) * @per_page
+              pager.replace(cached_articles.offset(offset).limit(@per_page))
+            end
+          end
         end
       }
 
       format.rss {
-        @articles = Article.published.order(created_at: :desc)
+        @articles = Article.cache_with_site("rss_feed") do
+          Article.published.order(created_at: :desc).limit(50)
+        end
         headers["Content-Type"] = "application/xml; charset=utf-8"
         render layout: false
       }
@@ -39,14 +56,33 @@ class ArticlesController < ApplicationController
   # GET /1 or /1.json
   def show
     if @article.nil? || (!%w[publish shared].include?(@article.status) && !authenticated?)
-      render file: Rails.public_path.join("404.html"), status: :not_found, layout: false
-      nil
+      render_error_page(404, "Article Not Found", "The article you requested could not be found.")
+      return
+    end
+    
+    # Add site context to the response
+    response.headers["X-Site-Name"] = current_site.name
+    response.headers["X-Site-Subdomain"] = current_site.subdomain
+    
+    # Cache article view count and related data
+    cache_site_fragment("article_#{@article.id}_show") do
+      # Increment view count (if you have such functionality)
+      # @article.increment!(:view_count) if @article.respond_to?(:view_count)
+      
+      # Preload related content for better performance
+      @related_articles = Article.cache_with_site("related_articles_#{@article.id}") do
+        Article.published
+               .where.not(id: @article.id)
+               .order(created_at: :desc)
+               .limit(5)
+      end
     end
   end
 
   # GET /articles/new
   def new
     @article = Article.new
+    @article.site = current_site # Pre-populate site association
   end
 
   # GET /1/edit
@@ -57,6 +93,8 @@ class ArticlesController < ApplicationController
   # POST / or /articles.json
   def create
     @article = Article.new(article_params)
+    @article.site = current_site # Associate with current site
+    
     respond_to do |format|
       if @article.save
         format.html { redirect_to admin_articles_path, notice: "Created successfully." }
@@ -101,6 +139,12 @@ class ArticlesController < ApplicationController
 
   def set_article
     @article = Article.find_by(slug: params[:slug])
+    
+    # Verify the article belongs to current site
+    if @article && @article.site_id != current_site.id
+      @article = nil
+      return
+    end
   end
 
   def article_params

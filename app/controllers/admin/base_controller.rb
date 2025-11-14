@@ -4,8 +4,42 @@ class Admin::BaseController < ApplicationController
 
   # before_action :authenticate_user!
   # before_action :require_admin_privileges
+  before_action :set_available_sites
+  before_action :handle_site_switch
+  
   layout "admin"
   private
+
+  def set_available_sites
+    @available_sites = Site.active.order(:name)
+  end
+
+  def handle_site_switch
+    if params[:switch_site].present?
+      new_site = Site.active.find_by(id: params[:switch_site])
+      if new_site && can_switch_to_site?(new_site)
+        session[:admin_site_id] = new_site.id
+        redirect_to request.referer || admin_root_path, notice: "已切换到站点: #{new_site.name}"
+      end
+    end
+  end
+
+  def can_switch_to_site?(site)
+    # 这里可以添加权限检查逻辑
+    # 例如：只有超级管理员可以切换站点，或者用户有特定站点的访问权限
+    true # 暂时允许所有用户切换站点
+  end
+
+  def current_admin_site
+    @current_admin_site ||= begin
+      if session[:admin_site_id].present?
+        Site.active.find_by(id: session[:admin_site_id]) || current_site
+      else
+        current_site
+      end
+    end
+  end
+  helper_method :current_admin_site
 
   def require_admin_privileges
     # 这里可以添加权限检查逻辑
